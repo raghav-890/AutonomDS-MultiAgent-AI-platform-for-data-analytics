@@ -1,0 +1,35 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy project
+COPY . .
+
+# Create required directories (will be in /tmp on Render free tier)
+RUN mkdir -p /tmp/autonomds/uploads \
+             /tmp/autonomds/reports \
+             /tmp/autonomds/chroma_db \
+             /tmp/autonomds/mlruns \
+             logs
+
+# Expose the port — Render injects $PORT at runtime (default 10000)
+# For local Docker use, this is overridden to 8000 by docker-compose
+EXPOSE ${PORT:-8000}
+
+HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
+
+# Use $PORT from environment (Render sets this automatically)
+# Falls back to 8000 for local Docker development
+CMD sh -c "uvicorn app.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"

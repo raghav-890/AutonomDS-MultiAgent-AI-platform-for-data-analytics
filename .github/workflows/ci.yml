@@ -1,0 +1,170 @@
+name: AutonomDS CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ── Lint & Format ────────────────────────────────────────────────────────────
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install quality tools
+        run: pip install ruff black mypy
+
+      - name: Lint with ruff
+        run: ruff check app/ tests/ --output-format=github
+
+      - name: Check formatting with black
+        run: black app/ tests/ --check
+
+  # ── Unit Tests ───────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install core dependencies
+        run: |
+          pip install --upgrade pip
+          # Install a subset for fast CI (no heavy ML libs)
+          pip install \
+            fastapi uvicorn pydantic pydantic-settings \
+            langchain langchain-core langgraph \
+            pandas numpy scikit-learn \
+            plotly chromadb sentence-transformers \
+            pytest pytest-asyncio pytest-cov pytest-mock \
+            httpx structlog tenacity python-dotenv \
+            langchain-ollama langchain-huggingface \
+            optuna xgboost lightgbm \
+            pyarrow openpyxl \
+            celery redis \
+            mlflow \
+            shap lime \
+            reportlab Pillow jinja2 \
+            sqlalchemy aiosqlite \
+            joblib tqdm psutil aiofiles \
+            streamlit
+
+      - name: Create .env for tests
+        run: |
+          cp .env.example .env
+          echo "LLM_PROVIDER=ollama" >> .env
+          echo "OLLAMA_BASE_URL=http://localhost:11434" >> .env
+
+      - name: Run unit tests
+        run: |
+          pytest tests/unit/ -v --tb=short \
+            --cov=app --cov-report=xml \
+            -k "not test_execute_populates_state"   # Skip full agent run in CI (no Ollama)
+        env:
+          PYTHONPATH: .
+          AUTONOMDS_ENV: test
+
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  # ── Integration Tests ────────────────────────────────────────────────────────
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            fastapi uvicorn pydantic pydantic-settings \
+            langchain langchain-core langgraph \
+            pandas numpy scikit-learn \
+            chromadb sentence-transformers \
+            pytest pytest-asyncio pytest-mock \
+            httpx structlog tenacity python-dotenv \
+            langchain-ollama langchain-huggingface \
+            optuna xgboost lightgbm \
+            pyarrow openpyxl plotly \
+            celery redis mlflow \
+            reportlab Pillow \
+            sqlalchemy aiosqlite joblib psutil aiofiles tqdm
+
+      - name: Create runtime directories
+        run: mkdir -p uploads experiments reports models mlflow/mlruns
+
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          echo "AUTONOMDS_ENV=test" >> .env
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integration/ -v --tb=short \
+            -k "not test_upload_csv"   # Skip file upload (tmp_path scoping in CI)
+        env:
+          PYTHONPATH: .
+          AUTONOMDS_ENV: test
+
+  # ── Docker Build ──────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          push: false
+          tags: autonomds-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.frontend
+          push: false
+          tags: autonomds-frontend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

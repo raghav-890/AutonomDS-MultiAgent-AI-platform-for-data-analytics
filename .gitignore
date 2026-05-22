@@ -1,0 +1,89 @@
+# AutonomDS .gitignore
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ML artifacts
+*.joblib
+*.pkl
+*.h5
+*.pt
+*.pth
+
+# Uploads (user data - not for VCS)
+uploads/
+
+# Experiments (generated data - large)
+experiments/mlflow.db
+experiments/chroma_db/
+experiments/mlflow_artifacts/
+experiments/reports/
+
+# Logs
+logs/
+*.log
+
+# Coverage
+.coverage
+coverage_report/
+coverage.xml
+htmlcov/
+
+# Pytest
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Docker
+*.env.docker
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp test files
+test_autonomds.db
+test_mlflow.db
+test_chroma/
+test_uploads/
+test_reports/
+
+# Streamlit secrets — NEVER commit real secrets
+app/frontend/.streamlit/secrets.toml
+
+# Datasets (user uploads — can be large)
+datasets/*.csv
+datasets/*.xlsx
+datasets/*.parquet
+datasets/*.db
+datasets/*.sqlite

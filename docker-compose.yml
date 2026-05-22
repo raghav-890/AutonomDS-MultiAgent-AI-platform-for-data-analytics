@@ -1,0 +1,179 @@
+# ============================================================
+# AutonomDS — Docker Compose
+# All services: api, frontend, worker, redis, mlflow
+# ============================================================
+
+version: "3.9"
+
+x-common-env: &common-env
+  APP_ENV: ${APP_ENV:-development}
+  DEBUG: ${DEBUG:-false}
+  DATABASE_URL: sqlite+aiosqlite:///./experiments/autonomds.db
+  MLFLOW_TRACKING_URI: http://mlflow:5000
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  CHROMA_PERSIST_DIR: /app/experiments/chroma_db
+  UPLOAD_DIR: /app/uploads
+  REPORTS_DIR: /app/experiments/reports
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-mistral:7b-instruct}
+  LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+  HUGGINGFACE_API_TOKEN: ${HUGGINGFACE_API_TOKEN:-}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+  # ── Redis ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: autonomds-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - autonomds-net
+
+  # ── MLflow Tracking Server ───────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.13.0
+    container_name: autonomds-mlflow
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+    networks:
+      - autonomds-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── FastAPI Backend ──────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: autonomds-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./experiments:/app/experiments
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    networks:
+      - autonomds-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Celery Worker ────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: autonomds-worker
+    restart: unless-stopped
+    command: celery -A app.api.celery_app worker --loglevel=info --concurrency=2 -Q default,pipeline
+    environment:
+      <<: *common-env
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./experiments:/app/experiments
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - autonomds-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Celery Flower Monitor ────────────────────────────────
+  flower:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: autonomds-flower
+    restart: unless-stopped
+    command: celery -A app.api.celery_app flower --port=5555 --broker=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    environment:
+      <<: *common-env
+    depends_on:
+      - redis
+      - worker
+    networks:
+      - autonomds-net
+
+  # ── Streamlit Frontend ───────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: autonomds-frontend
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      <<: *common-env
+      STREAMLIT_API_URL: http://api:8000
+      STREAMLIT_SERVER_PORT: 8501
+      STREAMLIT_SERVER_ADDRESS: 0.0.0.0
+      STREAMLIT_SERVER_ENABLE_CORS: "false"
+      STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION: "false"
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./experiments:/app/experiments
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - autonomds-net
+
+volumes:
+  redis_data:
+  mlflow_data:
+
+networks:
+  autonomds-net:
+    driver: bridge

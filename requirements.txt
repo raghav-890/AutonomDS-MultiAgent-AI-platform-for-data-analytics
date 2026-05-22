@@ -1,0 +1,113 @@
+# ============================================================
+# AutonomDS — Autonomous Data Science Research Agent
+# requirements.txt — All dependencies pinned for reproducibility
+# ============================================================
+
+# ── Core Framework ──────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+pydantic==2.7.1
+pydantic-settings==2.2.1
+python-multipart==0.0.9
+httpx==0.27.0
+
+# ── LangChain / LangGraph ───────────────────────────────────
+langchain==0.2.1
+langchain-core==0.2.3
+langchain-community==0.2.1
+langchain-ollama==0.1.1
+langgraph==0.1.5
+langchain-huggingface==0.0.3
+
+# ── LLM Backends ────────────────────────────────────────────
+ollama==0.2.0
+huggingface-hub==0.23.1
+transformers==4.41.1
+tokenizers==0.19.1
+accelerate==0.30.1
+sentence-transformers==3.0.0
+
+# ── Vector Database ─────────────────────────────────────────
+chromadb==0.5.0
+
+# ── ML Frameworks ───────────────────────────────────────────
+scikit-learn==1.5.0
+xgboost==2.0.3
+lightgbm==4.3.0
+# catboost==1.2.5  # Uncomment if on x86_64; skip on Apple Silicon if issues
+torch==2.3.0
+torchvision==0.18.0
+optuna==3.6.1
+
+# ── Data Processing ─────────────────────────────────────────
+pandas==2.2.2
+numpy==1.26.4
+scipy==1.13.0
+openpyxl==3.1.2
+pyarrow==16.1.0
+
+# ── Visualization ───────────────────────────────────────────
+plotly==5.22.0
+matplotlib==3.9.0
+seaborn==0.13.2
+kaleido==0.2.1
+
+# ── Explainability ──────────────────────────────────────────
+shap==0.45.1
+lime==0.2.0.1
+
+# ── Experiment Tracking ─────────────────────────────────────
+mlflow==2.13.0
+
+# ── Task Queue ──────────────────────────────────────────────
+celery==5.4.0
+redis==5.0.4
+flower==2.0.1
+
+# ── Frontend ────────────────────────────────────────────────
+streamlit==1.35.0
+streamlit-extras==0.4.2
+streamlit-option-menu==0.3.12
+streamlit-aggrid==1.0.5
+
+# ── Report Generation ───────────────────────────────────────
+reportlab==4.2.0
+Pillow==10.3.0
+jinja2==3.1.4
+markdown==3.6
+
+# ── Database ────────────────────────────────────────────────
+sqlalchemy==2.0.30
+alembic==1.13.1
+aiosqlite==0.20.0
+
+# ── Security ────────────────────────────────────────────────
+RestrictedPython==7.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# ── Kaggle ──────────────────────────────────────────────────
+kaggle==1.6.12
+
+# ── Logging & Monitoring ─────────────────────────────────────
+structlog==24.1.0
+rich==13.7.1
+loguru==0.7.2
+
+# ── Dev & Testing ───────────────────────────────────────────
+pytest==8.2.1
+pytest-asyncio==0.23.7
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+httpx==0.27.0
+ruff==0.4.7
+mypy==1.10.0
+
+# ── Utilities ───────────────────────────────────────────────
+python-dotenv==1.0.1
+tenacity==8.3.0
+aiofiles==23.2.1
+click==8.1.7
+tqdm==4.66.4
+joblib==1.4.2
+psutil==5.9.8
