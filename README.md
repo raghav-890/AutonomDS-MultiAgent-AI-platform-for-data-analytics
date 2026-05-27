@@ -76,6 +76,9 @@ USER
 - ✅ **GitHub Actions CI/CD** — automated testing + Docker builds
 
 ---
+## 📖 Project Documentation
+
+👉 **[View Full Project Documentation →](https://yourusername.github.io/autonomous-ds-agent/project_documentation.html)**
 
 ## Quick Start
 
