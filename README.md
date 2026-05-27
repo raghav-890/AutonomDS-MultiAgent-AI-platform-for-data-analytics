@@ -79,6 +79,10 @@ USER
 ## 📖 Project Documentation
 
 👉 **[View Full Project Documentation →]( https://raghav-890.github.io/AutonomDS-MultiAgent-AI-platform-for-data-analytics/)**
+## 📖 Project Documentation
+
+[View Project Documentation](https://htmlpreview.github.io/?https://github.com/raghav-890/autonomous-ds-agent/blob/main/docs/project_documentation.html)
+
 
 ## Quick Start
 
